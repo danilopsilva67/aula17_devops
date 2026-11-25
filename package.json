@@ -1,0 +1,19 @@
+{
+  "name": "otel-apm-demo-win",
+  "version": "1.0.0",
+  "description": "Exemplo local em Node.js com OpenTelemetry enviando traces para o endpoint APM",
+  "main": "app.js",
+  "scripts": {
+    "start": "node --require ./instrumentation.js app.js"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.52.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.54.0",
+    "@opentelemetry/resources": "^1.26.0",
+    "@opentelemetry/sdk-node": "^0.54.0",
+    "@opentelemetry/semantic-conventions": "^1.27.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  }
+}
