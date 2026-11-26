@@ -1,39 +1,30 @@
-// instrumentation.js
 require('dotenv').config();
 
+const { trace } = require('@opentelemetry/api');
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
 const { Resource } = require('@opentelemetry/resources');
-const { ATTR_SERVICE_NAME, ATTR_SERVICE_NAMESPACE } = require('@opentelemetry/semantic-conventions');
 
-const rawEndpoint =
-  process.env.ELASTIC_OTLP_ENDPOINT ||
+const rawEndpoint = (
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
-  'http://187.41.104.18:8200';
+  process.env.ELASTIC_OTLP_ENDPOINT ||
+  'http://187.41.104.18:8200'
+).trim().replace(/[\[\]]/g, '');
 
-const otlpEndpoint = rawEndpoint.endsWith('/v1/traces')
+const url = rawEndpoint.endsWith('/v1/traces')
   ? rawEndpoint
   : `${rawEndpoint.replace(/\/+$/, '')}/v1/traces`;
 
-const rawHeaders = process.env.ELASTIC_OTLP_HEADERS || '';
-const normalizedAuth = rawHeaders.startsWith('Authorization=')
-  ? rawHeaders.slice('Authorization='.length).trim()
-  : rawHeaders.trim();
-
-const traceExporter = new OTLPTraceExporter({
-  url: otlpEndpoint,
-  headers: normalizedAuth ? { Authorization: normalizedAuth } : {},
-});
-
 const sdk = new NodeSDK({
-  resource: new Resource({
-    [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'windows-local-node-demo',
-    [ATTR_SERVICE_NAMESPACE]: process.env.OTEL_SERVICE_NAMESPACE || 'observabilidade-local',
-    'host.os.family': 'windows',
-    'deployment.environment.name': process.env.OTEL_ENV || 'local-windows',
-  }),
-  traceExporter,
+  resource: Resource.default().merge(
+    new Resource({
+      'service.name': 'github-testeaula17',
+      'service.version': '1.0.0',
+      'deployment.environment': 'production',
+    })
+  ),
+  traceExporter: new OTLPTraceExporter({ url }),
   instrumentations: [
     getNodeAutoInstrumentations({
       '@opentelemetry/instrumentation-fs': { enabled: false },
@@ -43,13 +34,21 @@ const sdk = new NodeSDK({
 
 sdk.start();
 
-function shutdown(signal) {
-  sdk
-    .shutdown()
-    .then(() => console.log(`[OTel] Finalizado (${signal}) com sucesso.`))
-    .catch((err) => console.error('[OTel] Erro ao finalizar:', err))
-    .finally(() => process.exit(0));
+const tracer = trace.getTracer('manual-boot-check');
+const bootSpan = tracer.startSpan('boot-check-aula17');
+bootSpan.end();
+
+async function shutdownGracefully(signal) {
+  console.log(`Recebido ${signal}, finalizando OpenTelemetry...`);
+  try {
+    await sdk.shutdown();
+    console.log('OpenTelemetry finalizado com sucesso.');
+  } catch (err) {
+    console.error('Falha ao finalizar OpenTelemetry:', err);
+  } finally {
+    process.exit(0);
+  }
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGINT', () => shutdownGracefully('SIGINT'));
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
