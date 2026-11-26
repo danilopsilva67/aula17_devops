@@ -31,7 +31,7 @@ const sdk = new NodeSDK({
     }),
   ],
 });
-
+//start
 sdk.start();
 
 const tracer = trace.getTracer('manual-boot-check');
